@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>toggleX — Settings Toggler, with Xtra features</title>
+<style>
+body { font-family: sans-serif; line-height: 1.5; margin: 1em auto; max-width: 50em; padding: 0 1em; }
+table { border-collapse: collapse; margin: 1em 0; }
+caption { text-align: left; font-weight: bold; padding-bottom: 0.3em; }
+th, td { border: 1px solid #767676; padding: 0.35em 0.7em; text-align: left; vertical-align: top; }
+kbd { border: 1px solid #767676; border-radius: 3px; padding: 0 0.3em; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<h1>toggleX — Settings Toggler, with Xtra features</h1>
+
+<p>toggleX turns settings you change often into two keystrokes. Press
+<kbd>NVDA+0</kbd> to start the toggleX layer, then press one more key to flip a
+setting or load a saved synthesizer. Each toggle is confirmed by name, followed
+by a high beep for on or a low beep for off.</p>
+
+<p>The layer lasts for exactly one keystroke. Pressing a key that toggleX does
+not use plays a low error beep and leaves the layer. Pressing
+<kbd>NVDA+0</kbd> a second time leaves the layer and passes the keystroke
+through.</p>
+
+<h2>Toggling settings</h2>
+
+<table>
+<caption>Keys pressed after <kbd>NVDA+0</kbd></caption>
+<thead>
+<tr><th>Key</th><th>Toggles</th></tr>
+</thead>
+<tbody>
+<tr><td><kbd>t</kbd></td><td>Tables</td></tr>
+<tr><td><kbd>c</kbd></td><td>Table cell coordinates</td></tr>
+<tr><td><kbd>o</kbd></td><td>Table headers</td></tr>
+<tr><td><kbd>h</kbd></td><td>Headings</td></tr>
+<tr><td><kbd>l</kbd></td><td>Lists</td></tr>
+<tr><td><kbd>k</kbd></td><td>Links</td></tr>
+<tr><td><kbd>i</kbd></td><td>Line indentation</td></tr>
+<tr><td><kbd>p</kbd></td><td>Object position information</td></tr>
+<tr><td><kbd>u</kbd></td><td>Keyboard shortcuts</td></tr>
+<tr><td><kbd>m</kbd></td><td>Automatic language switching</td></tr>
+<tr><td><kbd>r</kbd></td><td>Trust the voice's language when processing characters and symbols</td></tr>
+<tr><td><kbd>d</kbd></td><td>Speech dictionary processing</td></tr>
+<tr><td><kbd>z</kbd></td><td>All text processing (see below)</td></tr>
+</tbody>
+</table>
+
+<h3>Settings with more than two states</h3>
+
+<p>Line indentation (<kbd>i</kbd>) and table headers (<kbd>o</kbd>) are not
+simple on/off settings in NVDA. Line indentation can be reported with speech,
+with tones, or with both; table headers can be reported for rows, for columns,
+or for both.</p>
+
+<p>toggleX remembers the mode you had chosen. Switching one of these settings
+off and then on again restores that same mode rather than resetting it, and the
+restored mode is announced — for example "Indentation Tones". If toggleX has
+not yet seen your choice in the current NVDA session, switching on selects
+"Both Speech and Tones" for indentation and "Rows and columns" for table
+headers.</p>
+
+<h3>Toggling all text processing</h3>
+
+<p><kbd>z</kbd> suspends symbol pronunciation, speech dictionaries and Unicode
+normalization in one step, so that text is spoken exactly as written. This is
+useful when a dictionary entry or symbol level is getting in the way of reading
+something precisely. Press <kbd>z</kbd> again to restore normal processing.
+Processing is also restored automatically if the add-on is unloaded.</p>
+
+<h2>Synthesizer slots</h2>
+
+<p>toggleX can store up to thirteen synthesizer configurations and switch
+between them instantly. A slot records the synthesizer, and its voice, variant,
+rate, pitch and volume — whichever of those the synthesizer supports.</p>
+
+<table>
+<caption>Slot keys pressed after <kbd>NVDA+0</kbd></caption>
+<thead>
+<tr><th>Key</th><th>Slot</th></tr>
+</thead>
+<tbody>
+<tr><td><kbd>1</kbd> to <kbd>9</kbd></td><td>Slots 1 to 9</td></tr>
+<tr><td><kbd>0</kbd></td><td>Slot 0</td></tr>
+<tr><td><kbd>-</kbd></td><td>Slot 11</td></tr>
+<tr><td><kbd>=</kbd></td><td>Slot 12</td></tr>
+<tr><td><kbd>`</kbd></td><td>Slot 13</td></tr>
+<tr><td><kbd>a</kbd></td><td>Save the current synthesizer into the active slot</td></tr>
+</tbody>
+</table>
+
+<p>To save a configuration, set up the synthesizer the way you want it, press
+<kbd>NVDA+0</kbd> then the slot key (toggleX reports "Empty slot" the first
+time), then press <kbd>NVDA+0</kbd> then <kbd>a</kbd>. The slot you last
+selected is the one that gets written, and toggleX confirms with "Saved to slot"
+and the number.</p>
+
+<p>Loading a slot announces the synthesizer's name. If a slot is empty toggleX
+says "Empty slot", and if the saved synthesizer can no longer be loaded it says
+so rather than failing silently.</p>
+
+<p>Slots are stored in <code>toggleX.json</code> in your NVDA user
+configuration directory. Slots saved by toggleX 0.x are imported automatically
+the first time version 1.0 runs; the old <code>switch_synth.pickle</code> file
+is left in place and is not read again.</p>
+
+<h2>Changing the command</h2>
+
+<p><kbd>NVDA+0</kbd> can be reassigned from NVDA's Input Gestures dialog, under
+the <em>toggleX</em> category. The keys pressed inside the layer are fixed.</p>
+
+<h2>Requirements</h2>
+
+<p>toggleX 1.0 requires NVDA 2026.1 or later. It will not install on earlier
+versions, which need toggleX 0.x instead.</p>
+
+<h2>Authors</h2>
+
+<p>toggleX was originally written by Tyler Spivey
+(<a href="mailto:tspivey@pcdesk.net">tspivey@pcdesk.net</a>) and Erion. It has
+been maintained since 2026 by Josh Kennedy
+(<a href="mailto:joshknnd1982@gmail.com">joshknnd1982@gmail.com</a>), who
+brought it up to date for NVDA 2026.1.</p>
+
+</body>
+</html>
