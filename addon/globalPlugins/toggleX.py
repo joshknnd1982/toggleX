@@ -1,6 +1,8 @@
 # toggleX: flip common NVDA settings and swap synthesizers from a single layered command.
 # Copyright (C) 2012-2023 Tyler Spivey <tspivey@pcdesk.net> and Erion
 # Copyright (C) 2026 Josh Kennedy <joshknnd1982@gmail.com>
+# This file is covered by the GNU General Public License version 2.
+# See the file LICENSE for more details.
 
 import json
 import os

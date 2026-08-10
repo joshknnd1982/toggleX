@@ -82,3 +82,11 @@ released version 1.0, which brings the add-on up to date for NVDA 2026.1. The
 original code is preserved unmodified as the first commit in this repository.
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed.
+
+## License
+
+toggleX is released under the [GNU General Public License version 2](LICENSE),
+the licence NVDA itself uses and the convention for NVDA add-ons. The original
+release carried no explicit licence statement; GPL v2 was applied when the
+add-on moved to this repository.
+
