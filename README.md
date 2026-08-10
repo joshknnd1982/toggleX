@@ -11,9 +11,20 @@ is confirmed by name, followed by a high beep for on or a low beep for off.
 
 ## Install
 
-Download `toggleX-1.0.nvda-addon` from the
+Download `toggleX-1.1.nvda-addon` from the
 [releases page](https://github.com/joshknnd1982/toggleX/releases) and open it,
 or install it from NVDA's Add-on Store via *Install from external source*.
+
+## Saving your settings
+
+Everything toggleX changes lives in NVDA's own configuration, so `NVDA+control+c`
+saves it and it comes back next time NVDA starts — including the three things
+NVDA has no place for on its own: speech dictionary processing, the
+all-text-processing toggle, and which synthesizer slot is active. toggleX
+settings also follow NVDA's configuration profiles.
+
+Synthesizer slots are the exception: they're written out as soon as you save one,
+so they're never lost even if NVDA closes unexpectedly.
 
 ## Commands
 

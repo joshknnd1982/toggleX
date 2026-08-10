@@ -8,6 +8,7 @@ import json
 import os
 import pickle
 from functools import wraps
+from typing import NamedTuple
 
 import addonHandler
 import config
@@ -32,46 +33,79 @@ CONFIG_FILE_NAME = "toggleX.json"
 #: The pickle written by toggleX 0.x, imported once and then left alone.
 LEGACY_CONFIG_FILE_NAME = "switch_synth.pickle"
 
-#: Two state settings: key -> (config section, config key, spoken label).
+#: Our section in NVDA's own configuration.
+CONFIG_SECTION = "toggleX"
+
+#: State that NVDA has nowhere else to keep. Living in config.conf means NVDA saves it
+#: along with everything else on NVDA+control+c, and restores it on the next start.
+CONFIG_SPEC = {
+	"speechDictionaryProcessing": "boolean(default=true)",
+	"textProcessing": "boolean(default=true)",
+	"activeSlot": "integer(default=1)",
+	# The mode to come back to when a multi-state setting is switched on again.
+	"lineIndentationMode": "integer(0, 3, default=3)",
+	"tableHeadersMode": "integer(0, 3, default=1)",
+}
+config.conf.spec[CONFIG_SECTION] = CONFIG_SPEC
+
+
+class BooleanSetting(NamedTuple):
+	section: str
+	key: str
+	label: str
+
+
+class MultiStateSetting(NamedTuple):
+	section: str
+	key: str
+	flags: type
+	defaultOn: int
+	#: Key under CONFIG_SECTION holding the mode to restore when switching back on.
+	modeKey: str
+	label: str
+
+
+#: Two state NVDA settings, keyed by the key pressed after NVDA+0.
 BOOLEAN_SETTINGS = {
 	# Translators: Announced when toggling reporting of tables.
-	"t": ("documentFormatting", "reportTables", _("Tables")),
+	"t": BooleanSetting("documentFormatting", "reportTables", _("Tables")),
 	# Translators: Announced when toggling reporting of headings.
-	"h": ("documentFormatting", "reportHeadings", _("Headings")),
+	"h": BooleanSetting("documentFormatting", "reportHeadings", _("Headings")),
 	# Translators: Announced when toggling reporting of lists.
-	"l": ("documentFormatting", "reportLists", _("Lists")),
+	"l": BooleanSetting("documentFormatting", "reportLists", _("Lists")),
 	# Translators: Announced when toggling reporting of table cell coordinates.
-	"c": ("documentFormatting", "reportTableCellCoords", _("Cell coordinates")),
+	"c": BooleanSetting("documentFormatting", "reportTableCellCoords", _("Cell coordinates")),
 	# Translators: Announced when toggling reporting of links.
-	"k": ("documentFormatting", "reportLinks", _("Links")),
+	"k": BooleanSetting("documentFormatting", "reportLinks", _("Links")),
 	# Translators: Announced when toggling reporting of object position information.
-	"p": ("presentation", "reportObjectPositionInformation", _("Position")),
+	"p": BooleanSetting("presentation", "reportObjectPositionInformation", _("Position")),
 	# Translators: Announced when toggling reporting of keyboard shortcuts.
-	"u": ("presentation", "reportKeyboardShortcuts", _("Shortcuts")),
+	"u": BooleanSetting("presentation", "reportKeyboardShortcuts", _("Shortcuts")),
 	# Translators: Announced when toggling automatic language switching.
-	"m": ("speech", "autoLanguageSwitching", _("Automatic language switching")),
+	"m": BooleanSetting("speech", "autoLanguageSwitching", _("Automatic language switching")),
 	# Translators: Announced when toggling trusting the voice's language.
-	"r": ("speech", "trustVoiceLanguage", _("Trust voice language")),
+	"r": BooleanSetting("speech", "trustVoiceLanguage", _("Trust voice language")),
 }
 
-#: Settings with more than an on and off state:
-#: key -> (config section, config key, flag enum, value used when switching back on, spoken label).
-#: These are announced as on or off like everything else, but the chosen mode is preserved
-#: across a toggle rather than being flattened to a boolean.
+#: NVDA settings with more than an on and off state. These are announced as on or off like
+#: everything else, but the chosen mode is preserved across a toggle rather than being
+#: flattened to a boolean.
 MULTI_STATE_SETTINGS = {
-	"i": (
+	"i": MultiStateSetting(
 		"documentFormatting",
 		"reportLineIndentation",
 		ReportLineIndentation,
 		ReportLineIndentation.SPEECH_AND_TONES,
+		"lineIndentationMode",
 		# Translators: Announced when toggling reporting of line indentation.
 		_("Indentation"),
 	),
-	"o": (
+	"o": MultiStateSetting(
 		"documentFormatting",
 		"reportTableHeaders",
 		ReportTableHeaders,
 		ReportTableHeaders.ROWS_AND_COLUMNS,
+		"tableHeadersMode",
 		# Translators: Announced when toggling reporting of table headers.
 		_("Table headers"),
 	),
@@ -128,21 +162,43 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.synths = {}
-		self.slot = 1
 		self.toggling = False
 		#: NVDA's real processText while the z toggle is suppressing text processing.
 		self.originalProcessText = None
-		#: The last enabled value of each multi state setting, so that switching one back
-		#: on restores the mode the user actually had chosen.
-		self.lastEnabledValue = {}
 		keys = list(BOOLEAN_SETTINGS) + list(MULTI_STATE_SETTINGS) + list(SYNTH_SLOTS) + ["d", "a", "z"]
 		self.__toggleGestures = {"kb:%s" % key: "toggleX" for key in keys}
 		self.load()
+		self.applySavedState()
+		# A profile switch can bring a different toggleX section into view.
+		config.post_configProfileSwitch.register(self.handleConfigProfileSwitch)
 
 	def terminate(self):
-		# Don't leave NVDA patched if the add-on is unloaded while processing is suppressed.
-		self.restoreTextProcessing()
+		config.post_configProfileSwitch.unregister(self.handleConfigProfileSwitch)
+		# Unloading the add-on must not leave NVDA patched, but it must not look like the
+		# user switched processing back on either, so this doesn't touch the config.
+		self.unpatchTextProcessing()
 		super().terminate()
+
+	def handleConfigProfileSwitch(self, **kwargs):
+		self.applySavedState()
+
+	def applySavedState(self):
+		"""Brings the settings NVDA has nowhere else to keep back in line with the config.
+
+		Everything else toggleX touches lives in NVDA's own configuration and is restored by
+		NVDA itself; these two are a plain module variable and a patched function.
+		"""
+		section = config.conf[CONFIG_SECTION]
+		self.setDictionaryProcessing(section["speechDictionaryProcessing"])
+		self.setTextProcessing(section["textProcessing"])
+
+	# Slots live in their own file, but which one is active belongs with the rest of the
+	# state NVDA saves, so that NVDA+control+c and profile switches cover it too.
+	def _get_activeSlot(self):
+		return config.conf[CONFIG_SECTION]["activeSlot"]
+
+	def _set_activeSlot(self, slot):
+		config.conf[CONFIG_SECTION]["activeSlot"] = slot
 
 	def getConfigPath(self, fileName):
 		return os.path.join(config.getUserDefaultConfigPath(), fileName)
@@ -181,7 +237,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			log.error("toggleX: could not write %s" % path, exc_info=True)
 
 	def setSynth(self, slot):
-		self.slot = slot
+		self.activeSlot = slot
 		settings = self.synths.get(slot)
 		if settings is None:
 			# Translators: Announced when a synthesizer slot has nothing saved in it.
@@ -206,6 +262,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					synthDriverHandler.changeVoice(synth, value)
 				continue
 			setattr(synth, setting, value)
+		# Applying a slot only changes the running driver. Without this, the config still
+		# holds the settings the synthesizer was loaded with, so saving the configuration
+		# would write those back and the slot would be lost on the next start.
+		synth.saveSettings()
 		ui.message(synth.description or synth.name)
 
 	def saveSynth(self):
@@ -218,10 +278,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		for setting in SYNTH_SETTINGS:
 			if synth.isSupported(setting):
 				settings[setting] = getattr(synth, setting)
-		self.synths[self.slot] = settings
+		self.synths[self.activeSlot] = settings
 		self.write()
 		# Translators: Announced when the current synthesizer is saved into the active slot.
-		ui.message(_("Saved to slot {slot}").format(slot=self.slot))
+		ui.message(_("Saved to slot {slot}").format(slot=self.activeSlot))
 
 	def onoff(self, value, msg=None):
 		if msg:
@@ -232,51 +292,63 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			tones.beep(270, 80)
 
 	def toggleBoolean(self, key):
-		section, setting, label = BOOLEAN_SETTINGS[key]
-		value = not config.conf[section][setting]
-		config.conf[section][setting] = value
-		self.onoff(value, label)
+		setting = BOOLEAN_SETTINGS[key]
+		value = not config.conf[setting.section][setting.key]
+		config.conf[setting.section][setting.key] = value
+		self.onoff(value, setting.label)
 
 	def toggleMultiState(self, key):
-		section, setting, flags, onValue, label = MULTI_STATE_SETTINGS[key]
-		current = config.conf[section][setting]
-		if current != flags.OFF.value:
-			self.lastEnabledValue[key] = current
-			config.conf[section][setting] = flags.OFF.value
+		setting = MULTI_STATE_SETTINGS[key]
+		current = config.conf[setting.section][setting.key]
+		label = setting.label
+		if current != setting.flags.OFF.value:
+			config.conf[CONFIG_SECTION][setting.modeKey] = current
+			config.conf[setting.section][setting.key] = setting.flags.OFF.value
 			self.onoff(False, label)
 			return
-		value = self.lastEnabledValue.get(key, onValue.value)
-		config.conf[section][setting] = value
+		value = config.conf[CONFIG_SECTION][setting.modeKey]
+		if value == setting.flags.OFF.value:
+			value = setting.defaultOn.value
+		config.conf[setting.section][setting.key] = value
 		try:
 			# Say which mode came back, since these settings have more than two states.
-			label = "%s %s" % (label, flags(value).displayString)
+			label = "%s %s" % (label, setting.flags(value).displayString)
 		except ValueError:
 			pass
 		self.onoff(True, label)
 
-	def toggleDictionaryProcessing(self):
-		globalVars.speechDictionaryProcessing = not globalVars.speechDictionaryProcessing
-		# Translators: Announced when toggling speech dictionary processing.
-		self.onoff(globalVars.speechDictionaryProcessing, _("Dictionary"))
+	def setDictionaryProcessing(self, enabled):
+		globalVars.speechDictionaryProcessing = enabled
+		config.conf[CONFIG_SECTION]["speechDictionaryProcessing"] = enabled
 
-	def restoreTextProcessing(self):
-		"""Puts NVDA's own processText back, if the z toggle replaced it. Returns whether it did."""
+	def toggleDictionaryProcessing(self):
+		enabled = not globalVars.speechDictionaryProcessing
+		self.setDictionaryProcessing(enabled)
+		# Translators: Announced when toggling speech dictionary processing.
+		self.onoff(enabled, _("Dictionary"))
+
+	def unpatchTextProcessing(self):
+		"""Puts NVDA's own processText back without recording that as a preference."""
 		if self.originalProcessText is None:
-			return False
+			return
 		if speech.speech.processText is passThroughText:
 			speech.speech.processText = self.originalProcessText
 		self.originalProcessText = None
-		return True
+
+	def setTextProcessing(self, enabled):
+		if enabled:
+			self.unpatchTextProcessing()
+		elif self.originalProcessText is None:
+			self.originalProcessText = speech.speech.processText
+			speech.speech.processText = passThroughText
+		config.conf[CONFIG_SECTION]["textProcessing"] = enabled
 
 	def toggleTextProcessing(self):
+		# Processing is suppressed exactly while we are holding NVDA's original function.
+		enabled = self.originalProcessText is not None
+		self.setTextProcessing(enabled)
 		# Translators: Announced when toggling all symbol, dictionary and normalization processing.
-		label = _("Text processing")
-		if self.restoreTextProcessing():
-			self.onoff(True, label)
-			return
-		self.originalProcessText = speech.speech.processText
-		speech.speech.processText = passThroughText
-		self.onoff(False, label)
+		self.onoff(enabled, _("Text processing"))
 
 	def getScript(self, gesture):
 		script = super().getScript(gesture)

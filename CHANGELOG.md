@@ -1,5 +1,46 @@
 # Changelog
 
+## 1.1
+
+### Fixed
+
+- **toggleX settings are now saved with the rest of your NVDA configuration.**
+  Pressing `NVDA+control+c` saves them, and they come back the next time NVDA
+  starts.
+
+  The settings toggleX shares with NVDA — tables, headings, lists, links, cell
+  coordinates, position, shortcuts, language switching and the rest — were
+  already being saved, because they live in NVDA's own configuration. Three
+  things were not, because NVDA has nowhere to keep them:
+
+  - **Speech dictionary processing (`d`)** is a plain variable inside NVDA that
+    resets to on every time NVDA starts.
+  - **All text processing (`z`)** works by replacing one of NVDA's functions for
+    the lifetime of the session, which nothing persists.
+  - **Which synthesizer slot is active**, which decides where `a` saves.
+
+  toggleX now keeps these in its own section of NVDA's configuration, so NVDA
+  saves and restores them like everything else. They also follow NVDA's
+  configuration profiles: switching to a profile with its own toggleX settings
+  applies them immediately.
+
+- **Loading a synthesizer slot now sticks.** Applying a slot only changed the
+  running synthesizer; the configuration still held the settings the
+  synthesizer had been loaded with. Saving your configuration therefore wrote
+  those older settings back, and the next NVDA session started with the right
+  synthesizer but the wrong voice, rate, pitch and volume. toggleX now writes a
+  loaded slot into the configuration, the same way NVDA does when you change a
+  synthesizer setting yourself.
+
+- The mode remembered for line indentation (`i`) and table headers (`o`) is
+  saved too, so switching one back on after a restart returns to the mode you
+  had chosen rather than the default.
+
+### Changed
+
+- Unloading the add-on no longer counts as switching text processing back on;
+  it restores NVDA's function without changing what you had saved.
+
 ## 1.0
 
 First release under new maintainership. Josh Kennedy has taken over toggleX from

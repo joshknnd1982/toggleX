@@ -25,6 +25,25 @@ not use plays a low error beep and leaves the layer. Pressing
 <kbd>NVDA+0</kbd> a second time leaves the layer and passes the keystroke
 through.</p>
 
+<h2>Saving your settings</h2>
+
+<p>Everything toggleX changes is stored in NVDA's own configuration, so
+<kbd>NVDA+control+c</kbd> saves it along with the rest of your settings and it
+comes back the next time NVDA starts. That covers the settings NVDA has its own
+place for, and also the three toggleX has to keep itself: speech dictionary
+processing, the all-text-processing toggle, and which synthesizer slot is
+active.</p>
+
+<p>If you have NVDA set to save your configuration on exit, that works too.
+Nothing is written to disk until NVDA saves, so toggling something and then
+quitting without saving leaves your settings as they were.</p>
+
+<p>Synthesizer slots are the exception: they are written out as soon as you save
+one, so they are never lost even if NVDA closes unexpectedly.</p>
+
+<p>toggleX settings follow NVDA's configuration profiles. If a profile becomes
+active that has its own toggleX settings, they take effect straight away.</p>
+
 <h2>Toggling settings</h2>
 
 <table>
@@ -114,8 +133,8 @@ the <em>toggleX</em> category. The keys pressed inside the layer are fixed.</p>
 
 <h2>Requirements</h2>
 
-<p>toggleX 1.0 requires NVDA 2026.1 or later. It will not install on earlier
-versions, which need toggleX 0.x instead.</p>
+<p>toggleX 1.0 and later require NVDA 2026.1 or later. They will not install on
+earlier versions of NVDA, which need toggleX 0.x instead.</p>
 
 <h2>Authors</h2>
 
