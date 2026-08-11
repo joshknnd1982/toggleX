@@ -11,7 +11,7 @@ is confirmed by name, followed by a high beep for on or a low beep for off.
 
 ## Install
 
-Download `toggleX-1.1.nvda-addon` from the
+Download `toggleX-1.2.nvda-addon` from the
 [releases page](https://github.com/joshknnd1982/toggleX/releases) and open it,
 or install it from NVDA's Add-on Store via *Install from external source*.
 

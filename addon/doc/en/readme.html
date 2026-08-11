@@ -119,7 +119,9 @@ and the number.</p>
 
 <p>Loading a slot announces the synthesizer's name. If a slot is empty toggleX
 says "Empty slot", and if the saved synthesizer can no longer be loaded it says
-so rather than failing silently.</p>
+so rather than failing silently. If a slot cannot be written to disk toggleX
+says that too, rather than reporting a save that would be gone by the next
+restart.</p>
 
 <p>Slots are stored in <code>toggleX.json</code> in your NVDA user
 configuration directory. Slots saved by toggleX 0.x are imported automatically

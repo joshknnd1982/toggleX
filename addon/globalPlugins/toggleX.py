@@ -201,7 +201,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		config.conf[CONFIG_SECTION]["activeSlot"] = slot
 
 	def getConfigPath(self, fileName):
-		return os.path.join(config.getUserDefaultConfigPath(), fileName)
+		# appArgs.configPath is the directory NVDA is actually using, and writes to itself.
+		# config.getUserDefaultConfigPath() only knows where an installed copy would keep
+		# its configuration: it ignores --config-path, and for every other copy it answers
+		# with a path relative to the working directory.
+		return os.path.join(globalVars.appArgs.configPath, fileName)
 
 	def load(self):
 		path = self.getConfigPath(CONFIG_FILE_NAME)
@@ -211,8 +215,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		try:
 			with open(path, "r", encoding="utf-8") as f:
 				self.synths = {int(slot): settings for slot, settings in json.load(f).items()}
-		except (OSError, ValueError):
+		except OSError:
 			log.error("toggleX: could not read %s" % path, exc_info=True)
+		except ValueError:
+			# Every slot now looks empty, and saving one would write over the file that
+			# still holds them, so keep the original for the user to salvage.
+			log.error("toggleX: could not parse %s" % path, exc_info=True)
+			self.setAside(path)
+
+	def setAside(self, path):
+		"""Renames a slots file that could not be read, so that it is not written over."""
+		keptPath = "%s.bad" % path
+		try:
+			os.replace(path, keptPath)
+		except OSError:
+			log.error("toggleX: could not move %s aside" % path, exc_info=True)
+			return
+		log.warning("toggleX: %s could not be read and has been kept as %s" % (path, keptPath))
 
 	def importLegacySlots(self):
 		"""Brings across the slots saved by toggleX 0.x, which used a pickle file."""
@@ -229,12 +248,28 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		self.write()
 
 	def write(self):
+		"""Writes the slots out, reporting whether they reached the disk.
+
+		Encoding everything before going near the file, and then replacing the file rather
+		than writing over it, means a failure leaves the slots that were already saved
+		alone. Writing in place empties the file first, and a synthesizer that hands back
+		something JSON cannot encode would take every saved slot with it.
+		"""
 		path = self.getConfigPath(CONFIG_FILE_NAME)
 		try:
-			with open(path, "w", encoding="utf-8") as f:
-				json.dump({str(slot): settings for slot, settings in self.synths.items()}, f, indent="\t")
+			slots = json.dumps({str(slot): settings for slot, settings in self.synths.items()}, indent="\t")
+		except (TypeError, ValueError):
+			log.error("toggleX: could not encode the synthesizer slots", exc_info=True)
+			return False
+		newPath = "%s.new" % path
+		try:
+			with open(newPath, "w", encoding="utf-8") as f:
+				f.write(slots)
+			os.replace(newPath, path)
 		except OSError:
 			log.error("toggleX: could not write %s" % path, exc_info=True)
+			return False
+		return True
 
 	def setSynth(self, slot):
 		self.activeSlot = slot
@@ -279,7 +314,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if synth.isSupported(setting):
 				settings[setting] = getattr(synth, setting)
 		self.synths[self.activeSlot] = settings
-		self.write()
+		if not self.write():
+			# The slot still works for the rest of this session, but saying it was saved
+			# would be a lie: it will not be there the next time NVDA starts.
+			# Translators: Announced when a synthesizer slot could not be written to disk.
+			ui.message(_("Could not save slot {slot}").format(slot=self.activeSlot))
+			return
 		# Translators: Announced when the current synthesizer is saved into the active slot.
 		ui.message(_("Saved to slot {slot}").format(slot=self.activeSlot))
 

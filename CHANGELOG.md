@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.2
+
+### Changed
+
+- The add-on is now listed as **ToggleX** in NVDA's Add-on Store and Add-ons
+  Manager, rather than "Settings Toggler, with Xtra features".
+
+### Fixed
+
+- **Saved synthesizer slots no longer go missing.** toggleX was asking NVDA where
+  an *installed* copy would keep its configuration rather than where the running
+  copy actually keeps it. On a portable copy, or with NVDA started using
+  `--config-path`, `toggleX.json` was read and written somewhere else entirely —
+  for a portable copy, a path relative to whatever directory NVDA happened to be
+  sitting in at the time. Slots saved in one moment reported "Empty slot" in the
+  next. toggleX now uses the configuration directory NVDA is really using, which
+  is the one NVDA writes `nvda.ini` to.
+
+- **A failed save no longer destroys the slots you already had.** The slots file
+  was emptied before the new contents had been worked out, so a synthesizer
+  handing back a setting that could not be stored left a half-written file
+  behind, and every saved slot with it. toggleX now prepares the whole file
+  first and puts it into place in one step, leaving the previous slots untouched
+  if anything goes wrong.
+
+- **A save that does not reach the disk now says so** instead of announcing
+  "Saved to slot" and losing the slot at the next restart.
+
+- **A slots file that cannot be read is kept rather than written over.** It is
+  renamed to `toggleX.json.bad` and the reason is logged, so the slots in it can
+  still be recovered.
+
 ## 1.1
 
 ### Fixed
